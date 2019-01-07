@@ -8,7 +8,7 @@ const feedRouter = require('./routes/feed');
 
 const app = express();
 
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 //Enable CORS calls
 app.use((req, res, next)=>{

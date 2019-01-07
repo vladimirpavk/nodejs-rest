@@ -19,6 +19,7 @@
   "homepage": "https://github.com/vladimirpavk/nodejs-rest#readme",
   "dependencies": {
     "body-parser": "^1.18.3",
-    "express": "^4.16.4"
+    "express": "^4.16.4",
+    "express-validator": "^5.3.1"
   }
 }
