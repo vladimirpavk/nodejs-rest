@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 
 const appConfig = require('./app-config');
 
@@ -20,6 +21,21 @@ app.use((req, res, next)=>{
 })
 
 app.use('/feed', feedRouter);
+
+mongoose.connect(appConfig.mongooseConnectionString, { useNewUrlParser: true })
+  .then(
+    (result)=>{
+      //connected
+      console.log('Connected to testBaza');   
+      app.listen(3000);
+    }
+  )
+  .catch(
+    (err)=>{
+      throw new Error(err);
+      //console.log('Something bad happened...');
+    }
+  );
 
 app.listen(appConfig.PORT);
 console.log('Server is listening on port ' + appConfig.PORT);

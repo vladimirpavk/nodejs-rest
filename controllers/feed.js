@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator/check');
+const postModel = require('../models/post');
 
-exports.getPosts = (req, res, next)=>{
+exports.getPosts = (req, res, next)=>{    
     res.status(200).json({
         posts: [
             {
