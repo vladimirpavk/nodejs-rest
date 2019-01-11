@@ -10,6 +10,7 @@ const appConfig = require('./app-config');
 
 //routes
 const feedRouter = require('./routes/feed');
+const authRouter = require('./routes/auth');
 
 const app = express();
 
@@ -56,6 +57,7 @@ app.use((req, res, next)=>{
 })
 
 app.use('/feed', feedRouter);
+app.use('/auth', authRouter);
 
 app.use(
     (error, req, res, next)=>{
