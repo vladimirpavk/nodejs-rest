@@ -22,4 +22,6 @@ router.post('/login',
     authController.postLogin
 );
 
+router.post('/activate/:confirmationToken', authController.postActivate);
+
 module.exports = router;

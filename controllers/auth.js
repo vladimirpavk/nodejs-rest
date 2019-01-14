@@ -1,10 +1,24 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { validationResult } = require('express-validator/check');
+const appConfig = require('../app-config');
 const userModel = require('../models/user');
+
+/*const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(appConfig.sendGridApi);*/
+
+const nodemailer = require('nodemailer');
+const sendgridTransport = require('nodemailer-sendgrid-transport');
+
+const transporter = nodemailer.createTransport(sendgridTransport({
+    auth: {        
+        api_key: appConfig.sendGridApiKey
+    }
+}));
 
 exports.postSignup = (req, res, next)=>{
     console.log('POST /auth/signup hitted');
-    console.log(req.body['email'], req.body['password'], req.body['name'], req.body['status']);
+    console.log(req.body['email'], req.body['password'], req.body['name']);
 
     const errors = validationResult(req);
     if(!errors.isEmpty())
@@ -17,8 +31,7 @@ exports.postSignup = (req, res, next)=>{
 
     const email = req.body['email'];
     const password = req.body['password'];
-    const name = req.body['name'];
-    const status = req.body['status'];
+    const name = req.body['name'];  
 
     userModel.findOne(
         {
@@ -38,21 +51,47 @@ exports.postSignup = (req, res, next)=>{
                     user.email = email;
                     user.name = name;
                     user.password = encryptedPassword;
-                    user.status = status;
-                    user.save().then(
-                        (result)=>{
-                            return res.status(200).json({
-                                message:'User successfully created...'
-                            });
-                        }                        
-                    )
-                    .catch(
-                        (err)=>{                             
+                    //user.status = 1 - Awaiting confirmation within an hour
+                    user.status = "1";
+
+                    crypto.randomBytes(32, (err, buffer)=>{
+                        if(err){
                             const error = new Error(err);
-                            error.statusCode = 422; //Unprocessable Entity
-                            return next(error); 
-                        }
-                    )                
+                            error.statusCode = 500;
+                            return next(error);
+                        }      
+                        //no error in crypto, buffer created
+                        user.confirmationToken = buffer.toString('hex');
+                        user.confirmationTokenExpiration = Date.now() + 3600000;
+                        user.save().then(
+                            (result)=>{
+                                const msg = {
+                                    to: email,
+                                    from: 'info@tvojmužić.com',
+                                    subject: 'Account signup confirmation - TvojMužić.com',
+                                    html: `
+                                        <h1>Dobrodošli na sajt TvojMužić.com !!!</h1>
+                                        <hr/>
+                                        <h3>Molimo Vas da klikom na link ispod aktivirate vaš nalog nakon čega možete koristiti usluge našeg sajta...
+                                        <a href="http://localhost:3001/activate/${user.confirmationToken}">http://localhost:3001/activate/${user.confirmationToken}</a>
+                                    `
+                                };                  
+
+                                res.status(200).json({
+                                    message:'User successfully created...Account awaiting for activation...'
+                                });    
+                                
+                                return transporter.sendMail(msg).catch(err=>{console.log(err)});                       
+                            }                        
+                        )
+                        .catch(
+                            (err)=>{                             
+                                const error = new Error(err);
+                                error.statusCode = 422; //Unprocessable Entity
+                                return next(error); 
+                            }
+                        )                
+                    });                                       
                 }
             )
             .catch(
@@ -64,6 +103,51 @@ exports.postSignup = (req, res, next)=>{
             )
         }
     )
+}
+
+exports.postActivate = (req, res, next)=>{
+    console.log('postActivate');
+
+    const confirmationToken = req.params['confirmationToken'];
+    if(!confirmationToken){
+        const error = new Error('Invalid token');
+        error.statusCode = 422;
+        throw error;
+    }
+    //confirmation token ok
+    userModel.findOne({
+        "confirmationToken": confirmationToken,
+        confirmationTokenExpiration: {
+            "$gt": Date.now()
+        }
+    })
+    .then((result)=>{
+        if(result === null){
+            return res.status(422).json({
+                message: 'No token or token expired...'
+            });
+        }
+        result.status = "2"; //status - 2 - Account activated
+        result.save().then(
+            (result)=>{
+                return res.status(200).json({
+                    message: 'Account successfully activated...'
+                });
+            }
+        )
+        /*.catch(
+            (err)=>{
+                const error=new Error('Server error. Woking on fixing the problem');
+                error.statusCode = 500;
+                return next(error);
+            }
+        )*/
+    })
+    .catch((err)=>{
+        const error=new Error('Server error. Woking on fixing the problem');
+        error.statusCode = 500;
+        return next(error);
+    })
 }
 
 exports.postLogin = (req, res, next)=>{

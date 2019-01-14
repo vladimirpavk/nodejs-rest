@@ -18,6 +18,12 @@ const userSchema = new Schema({
         type:String,
         required: true
     },
+    confirmationToken: {
+        type: String
+    },
+    confirmationTokenExpiration: {
+        type: mongoose.SchemaTypes.Date
+    },
     posts: [
         {
             type: Schema.Types.ObjectId,
