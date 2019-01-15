@@ -130,7 +130,7 @@ exports.postActivate = (req, res, next)=>{
         result.status = "2"; //status - 2 - Account activated
         result.save().then(
             (result)=>{
-                return res.status(200).json({
+                return res.status(201).json({
                     message: 'Account successfully activated...'
                 });
             }
@@ -167,13 +167,14 @@ exports.postLogin = (req, res, next)=>{
     const password = req.body['password'];
 
     userModel.findOne({
-        email: email
+        email: email,
+        status : "2"
     }).then(
         (result)=>{           
             if(result === null)
             {
                 //username not found
-                const error = new Error('Username not found...');
+                const error = new Error('Username not found or account not activated...');
                 error.statusCode = 422;
                 return next(error);
             }
