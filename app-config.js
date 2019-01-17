@@ -9,3 +9,4 @@ exports.accountConfirmationEmail =
 <h3>Molimo Vas da klikom na link ispod aktivirate vaš nalog nakon čega možete koristiti usluge našeg sajta...
 <a href=""></a>
 `
+exports.jwtSecretKey = 'supersecretkey';

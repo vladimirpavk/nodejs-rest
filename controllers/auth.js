@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator/check');
 const appConfig = require('../app-config');
 const userModel = require('../models/user');
@@ -170,7 +171,7 @@ exports.postLogin = (req, res, next)=>{
         email: email,
         status : "2"
     }).then(
-        (result)=>{           
+        (result)=>{  
             if(result === null)
             {
                 //username not found
@@ -179,13 +180,22 @@ exports.postLogin = (req, res, next)=>{
                 return next(error);
             }
             //username found - compare password
-            bcrypt.compare(password, result.password).then(
+            return bcrypt.compare(password, result.password).then(
                 (isSame)=>{
                     if(isSame){
                         //passwords match
                         //change logic here - this is demo purposes only
-                        return res.status(200).json({
+                        /*return res.status(200).json({
                             message: 'user logged in'
+                        });*/
+                        const token = jwt.sign({
+                            email: result.email,
+                            userId: result._id.toString()
+                        }, appConfig.jwtSecretKey, {
+                            expiresIn: '1h'
+                        });                        
+                        return res.status(200).json({
+                            token: token
                         });
                     }
                     //passwords do not match - throw error
@@ -195,8 +205,8 @@ exports.postLogin = (req, res, next)=>{
                 }
             )
             .catch(
-                (err)=>{
-                    const error=new Error('Server error. Woking on fixing the problem');
+                (err)=>{                    
+                    const error=new Error(err);
                     error.statusCode = 500;
                     return next(error);
                 }

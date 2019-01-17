@@ -1,3 +1,5 @@
 node_modules/
 images/
 ./app-config.js
+app-config.js
+app-*
