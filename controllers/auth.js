@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator/check');
+const mongoose = require('mongoose');
+
 const appConfig = require('../app-config');
 const userModel = require('../models/user');
 
@@ -220,4 +222,64 @@ exports.postLogin = (req, res, next)=>{
             return next(error);
         }
     )
+}
+
+exports.getStatus = (req, res, next)=>{
+    //went through is-auth middleware
+    userModel.findById(req.userId)
+        .then(
+            (user)=>{
+                if(user===null){
+                    return res.status(404).json({
+                        message: `User with ${req.userId} not found...`
+                    });
+                }
+                return res.status(200).json({
+                    status: user.status
+                });
+            }
+        )
+        .catch((err)=>{
+            const error = new Error('Something bad happened...');
+            error.statusCode = 500;
+            return next(error);
+        });
+}
+
+exports.putStatus = (req, res, next)=>{
+    //went through is-auth middleware
+    //req.body['status']
+
+    const updatedStatus = req.body['status'];
+    console.log(updatedStatus, req.userId);
+
+    userModel.findById(req.userId)
+        .then(
+            (user)=>{
+                if(user===null){
+                    return res.status(404).json({
+                        message: `User with ${req.userId} not found...`
+                    });
+                }
+                user.status = updatedStatus;
+                user.save()
+                    .then(
+                        (result)=>{
+                            return res.status(200).json({
+                                message: `Status successfully updated...New status ${updatedStatus}`
+                            });
+                        }
+                    )
+                    .catch((err)=>{
+                        const error = new Error('Something bad happened...');
+                        error.statusCode = 500;
+                        return next(error);
+                    })                
+            }
+        )
+        .catch((err)=>{
+            const error = new Error('Something bad happened...');
+            error.statusCode = 500;
+            return next(error);
+        });
 }
