@@ -1,5 +1,8 @@
 const { validationResult } = require('express-validator/check');
+const mongoose = require('mongoose');
+
 const postModel = require('../models/post');
+const userModel = require('../models/user');
 
 exports.getPosts = (req, res, next)=>{
     postModel.find().then(
@@ -15,7 +18,9 @@ exports.getPosts = (req, res, next)=>{
             if(!err.statusCode){
                 err.statusCode = 500;
             }
+            console.log(err);
             next(err);
+            
         }
     );
     
@@ -55,18 +60,27 @@ exports.createPost = (req, res, next) =>{
         title: title,
         imageUrl: imageUrl,
         content: content,
-        creator: {
-            name: 'Pavle'
-        }
+        creator: req.userId             
     });
 
+    let newPost;
+
     post.save()
-        .then((result)=>{
-            res.status(201).json({
-                'message': 'Post created successfully!',
-                post: result
-            });
+        .then((post)=>{
+            newPost = post;
+            return userModel.findById(req.userId) 
         })
+        .then((foundUser)=>{
+            foundUser.posts.push(post);
+            return foundUser.save();
+        })
+        .then((result)=>{
+            return res.status(201).json({
+                'message': 'Post created successfully!',
+                post: newPost,
+                creator: { _id: result._id, name: result.name }
+            });
+        })                   
         .catch(
             (err)=>{ 
                 if(!err.statusCode) err.statusCode = 500;
