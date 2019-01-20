@@ -4,43 +4,21 @@ const mongoose = require('mongoose');
 const postModel = require('../models/post');
 const userModel = require('../models/user');
 
-exports.getPosts = (req, res, next)=>{
-    postModel.find().then(
-        (posts)=>{
-            res.status(200).json({
-                message: 'Posts fetched successfully...',
-                posts: posts
-            });
-        }
-    )
-    .catch(
-        (err)=>{
-            if(!err.statusCode){
-                err.statusCode = 500;
-            }
-            console.log(err);
-            next(err);
-            
-        }
-    );
-    
-    /*res.status(200).json({
-        posts: [
-            {
-                _id:1,
-                title: 'My new assigment',
-                content: 'Story about my new assigment',
-                imageUrl: 'images/pavle.jpg',
-                creator:{
-                    name: 'Pavle'
-                },
-                date:new Date().now
-            }
-        ]
-    });*/
+exports.getPosts = async (req, res, next)=>{
+    try{
+        const posts = await postModel.find();
+        return res.status(200).json({
+            message: 'Posts fetched successfully...',
+            posts: posts
+        });
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;                
+        next(err);
+    }
 }
 
-exports.createPost = (req, res, next) =>{
+exports.createPost = async (req, res, next) =>{
     const errors = validationResult(req);
     if(!errors.isEmpty()){      
         const error = new Error('SSV failed...');
@@ -63,9 +41,23 @@ exports.createPost = (req, res, next) =>{
         creator: req.userId             
     });
 
-    let newPost;
+    try{
+        let newPost = await post.save();
+        const foundUser = await userModel.findById(req.userId);
+        foundUser.posts.push(post);
+        const result = await foundUser.save();
 
-    post.save()
+        return res.status(201).json({
+            message: 'Post created successfully!',
+            post: newPost,
+            creator: { _id: result._id, name: result.name }
+        });
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }    
+    /*post.save()
         .then((post)=>{
             newPost = post;
             return userModel.findById(req.userId) 
@@ -85,12 +77,29 @@ exports.createPost = (req, res, next) =>{
             (err)=>{ 
                 if(!err.statusCode) err.statusCode = 500;
                 next(err);
-            });       
+            });*/       
 }
 
-exports.getPost = (req, res, next)=>{
+exports.getPost = async (req, res, next)=>{
     const postId = req.params['postId'];
-    postModel.findById(postId)
+    try{
+        const result = await postModel.findById(postId);
+        if(!result){
+            const error = new Error('Could not find post...');
+            error.statusCode = 404;
+            next(error);
+        }               
+        return res.status(200).json({
+            message: 'Post fetched...',
+            post: result
+        });
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+    
+    /*postModel.findById(postId)
         .then(
             (result)=>{                
                 if(!result){
@@ -108,10 +117,10 @@ exports.getPost = (req, res, next)=>{
         (err)=>{ 
             if(!err.statusCode) err.statusCode = 500;
             next(err);
-    }); 
+    });*/
 }
 
-exports.updatePost = (req, res, next)=>{
+exports.updatePost = async (req, res, next)=>{
     const postId = req.params['postId'];
     const errors = validationResult(req);
     if(!errors.isEmpty()){      
@@ -134,12 +143,27 @@ exports.updatePost = (req, res, next)=>{
         imageUrl: imageUrl,
         content: content,
         creator: {
-            name: 'Pavle'
+            name: req.userId
         }
     };
     console.log(updatedPost);
 
-    postModel.findOneAndUpdate(
+    try{
+        const isOk = await postModel.findOneAndUpdate(
+            {
+                _id: postId
+            }, updatedPost);
+        return res.status(200).json({            
+            message: 'Post updated',
+            post: updatedPost});  
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+
+    
+    /*postModel.findOneAndUpdate(
         {
             _id: postId
         }, updatedPost)
@@ -153,15 +177,30 @@ exports.updatePost = (req, res, next)=>{
             (err)=>{
                const error = new Error('Something bad happened...');
                error.statusCode = 500;
-               throw error;
+               next(error);
             }
-    );
+    );*/
 }
 
-exports.deletePost = (req, res, next)=>{
+exports.deletePost = async (req, res, next)=>{
     const postId = req.params['postId'];
+    try{
+        const result = await postModel.findOneAndDelete(
+            {
+                _id: postId
+            });
+        return res.status(200).json(
+            {
+                message: 'Post deleted successfully...'
+            }
+        );
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
 
-    postModel.findOneAndDelete(
+    /*postModel.findOneAndDelete(
         {
             _id: postId
         }
@@ -178,7 +217,7 @@ exports.deletePost = (req, res, next)=>{
         (err)=>{
             const error = new Error('Something bad happened...');
             error.statusCode = 500;
-            throw error;
+            next(error);
         }
-    )
+    )*/
 }

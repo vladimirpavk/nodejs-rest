@@ -19,7 +19,7 @@ const transporter = nodemailer.createTransport(sendgridTransport({
     }
 }));
 
-exports.postSignup = (req, res, next)=>{
+exports.postSignup = async (req, res, next)=>{
     console.log('POST /auth/signup hitted');
     console.log(req.body['email'], req.body['password'], req.body['name']);
 
@@ -36,7 +36,36 @@ exports.postSignup = (req, res, next)=>{
     const password = req.body['password'];
     const name = req.body['name'];  
 
-    userModel.findOne(
+    try{
+        const result = await userModel.findOne(
+            {
+                email: email
+            }
+        );
+        if(result !== null){
+            const error = new Error("Username already exists...");
+            error.statusCode = 422; //Unprocessable Entity
+            return next(error);               
+        }
+        const encryptedPassword = await bcrypt.hash(password, 12);
+
+        const user = new userModel();
+        user.email = email;
+        user.name = name;
+        user.password = encryptedPassword;        
+        user.status = "Hi there. I'm the new guy.";
+        await user.save();
+
+        return res.status(200).json({
+            message:'User successfully created...'
+        }); 
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+
+    /*userModel.findOne(
         {
             email: email
         }
@@ -105,7 +134,7 @@ exports.postSignup = (req, res, next)=>{
                 }
             )
         }
-    )
+    )*/
 }
 
 exports.postActivate = (req, res, next)=>{
@@ -117,6 +146,7 @@ exports.postActivate = (req, res, next)=>{
         error.statusCode = 422;
         throw error;
     }
+    
     //confirmation token ok
     userModel.findOne({
         "confirmationToken": confirmationToken,
@@ -153,7 +183,7 @@ exports.postActivate = (req, res, next)=>{
     })
 }
 
-exports.postLogin = (req, res, next)=>{
+exports.postLogin = async (req, res, next)=>{
     console.log('POST /auth/login hitted');
     console.log(req.body['email'], req.body['password']);
 
@@ -169,7 +199,41 @@ exports.postLogin = (req, res, next)=>{
     const email = req.body['email'];
     const password = req.body['password'];
 
-    userModel.findOne({
+    try{
+        const result = await userModel.findOne({
+            email: email
+        });
+
+        if(result === null)
+        {
+            //username not found
+            const error = new Error('Username not found...');
+            error.statusCode = 422;
+            return next(error);
+        }
+
+        const isSame = await bcrypt.compare(password, result.password);
+        if(isSame){
+            const token = jwt.sign({
+                email: result.email,
+                userId: result._id.toString()
+            }, appConfig.jwtSecretKey, {
+                expiresIn: '1h'
+            });                        
+            return res.status(200).json({
+                token: token
+            });
+        }
+        //passwords do not match - throw error
+        const error = new Error('Password invalid...');
+        error.statusCode = 422;
+        return next(error);
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+    /*userModel.findOne({
         email: email,
         status : "2"
     }).then(
@@ -185,11 +249,7 @@ exports.postLogin = (req, res, next)=>{
             return bcrypt.compare(password, result.password).then(
                 (isSame)=>{
                     if(isSame){
-                        //passwords match
-                        //change logic here - this is demo purposes only
-                        /*return res.status(200).json({
-                            message: 'user logged in'
-                        });*/
+                        //passwords match                                           
                         const token = jwt.sign({
                             email: result.email,
                             userId: result._id.toString()
@@ -221,12 +281,29 @@ exports.postLogin = (req, res, next)=>{
             error.statusCode = 422;
             return next(error);
         }
-    )
+    )*/
 }
 
-exports.getStatus = (req, res, next)=>{
+exports.getStatus = async (req, res, next)=>{
     //went through is-auth middleware
-    userModel.findById(req.userId)
+    try{
+        const user = await userModel.findById(req.userId);
+
+        if(user===null){
+            return res.status(404).json({
+                message: `User with ${req.userId} not found...`
+            });
+        }
+        //user found
+        return res.status(200).json({
+            status: user.status
+        });
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+    /*userModel.findById(req.userId)
         .then(
             (user)=>{
                 if(user===null){
@@ -243,17 +320,37 @@ exports.getStatus = (req, res, next)=>{
             const error = new Error('Something bad happened...');
             error.statusCode = 500;
             return next(error);
-        });
+        });*/
 }
 
-exports.putStatus = (req, res, next)=>{
+exports.putStatus = async (req, res, next)=>{
     //went through is-auth middleware
     //req.body['status']
 
     const updatedStatus = req.body['status'];
     console.log(updatedStatus, req.userId);
 
-    userModel.findById(req.userId)
+    try{
+        const user = await userModel.findById(req.userId);
+        if(user===null){
+            return res.status(404).json({
+                message: `User with ${req.userId} not found...`
+            });
+        }
+        //user !== null
+        user.status = updatedStatus;
+        const result = await user.save();
+
+        return res.status(200).json({
+            message: `Status successfully updated...New status ${updatedStatus}`
+        });
+    }
+    catch(err){
+        if(!err.statusCode) err.statusCode = 500;
+        next(err);
+    }
+
+    /*userModel.findById(req.userId)
         .then(
             (user)=>{
                 if(user===null){
@@ -281,5 +378,5 @@ exports.putStatus = (req, res, next)=>{
             const error = new Error('Something bad happened...');
             error.statusCode = 500;
             return next(error);
-        });
+        });*/
 }
