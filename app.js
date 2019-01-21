@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const uuidv4 = require('uuid/v4');
+const io = require('./socket');
 
 const appConfig = require('./app-config');
 
@@ -72,7 +73,14 @@ mongoose.connect(appConfig.mongooseConnectionString, { useNewUrlParser: true })
     (result)=>{
       //connected
       console.log('Connected to testBaza');   
-      app.listen(3000);
+      const httpHandler = app.listen(appConfig.PORT);
+      
+      const ioHandler = io.init(httpHandler);
+      ioHandler.on('connection', (socket)=>{
+          console.log('Client connected...');
+      });
+
+      console.log('Server is listening on port ' + appConfig.PORT);
     }
   )
   .catch(
@@ -81,6 +89,3 @@ mongoose.connect(appConfig.mongooseConnectionString, { useNewUrlParser: true })
       //console.log('Something bad happened...');
     }
   );
-
-app.listen(appConfig.PORT);
-console.log('Server is listening on port ' + appConfig.PORT);

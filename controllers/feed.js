@@ -1,6 +1,8 @@
 const { validationResult } = require('express-validator/check');
 const mongoose = require('mongoose');
 
+const io = require('../socket.js');
+
 const postModel = require('../models/post');
 const userModel = require('../models/user');
 
@@ -46,6 +48,10 @@ exports.createPost = async (req, res, next) =>{
         const foundUser = await userModel.findById(req.userId);
         foundUser.posts.push(post);
         const result = await foundUser.save();
+
+        //for use with websockets
+        io.getIo().emit('post', 
+        { action: 'create', post:newPost});        
 
         return res.status(201).json({
             message: 'Post created successfully!',
