@@ -50,8 +50,8 @@ exports.createPost = async (req, res, next) =>{
         const result = await foundUser.save();
 
         //for use with websockets
-        io.getIo().emit('post', 
-        { action: 'create', post:newPost});        
+        /*io.getIo().emit('post', 
+        { action: 'create', post:newPost});*/
 
         return res.status(201).json({
             message: 'Post created successfully!',

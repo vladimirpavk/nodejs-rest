@@ -7,6 +7,11 @@ const multer = require('multer');
 const uuidv4 = require('uuid/v4');
 const io = require('./socket');
 
+//graphql
+const graphqlHttp = require('express-graphql');
+const schemaQl = require('./graphql/schema');
+const resolversQl = require('./graphql/resolvers');
+
 const appConfig = require('./app-config');
 
 //routes
@@ -57,8 +62,13 @@ app.use((req, res, next)=>{
     next();
 })
 
-app.use('/feed', feedRouter);
-app.use('/auth', authRouter);
+app.use('/graphql', graphqlHttp({
+    schema : schemaQl,
+    rootValue : resolversQl
+}));
+
+/*app.use('/feed', feedRouter);
+app.use('/auth', authRouter);*/
 
 app.use(
     (error, req, res, next)=>{
@@ -75,10 +85,10 @@ mongoose.connect(appConfig.mongooseConnectionString, { useNewUrlParser: true })
       console.log('Connected to testBaza');   
       const httpHandler = app.listen(appConfig.PORT);
       
-      const ioHandler = io.init(httpHandler);
+      /*const ioHandler = io.init(httpHandler);
       ioHandler.on('connection', (socket)=>{
           console.log('Client connected...');
-      });
+      });*/
 
       console.log('Server is listening on port ' + appConfig.PORT);
     }
